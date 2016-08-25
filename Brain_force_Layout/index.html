@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script type="text/javascript" src="http://d3js.org/d3.v2.js"></script>
+<style type="text/css">
+.link { stroke: #ccc; }
+.nodetext { pointer-events: none; font: 10px sans-serif; }
+</style>
+</head>
+
+<body>
+ 
+
+<img src="brain.jpg"  height="180" width="260"> Brain tractography of the brain, with areas seen as nodes in a force displament graph 
+<br>
+<center>
+
+<script type="text/javascript">
+/*
+This javascript is based on D3JS and the force layout object used to show the connections within the brain.
+
+Brain connections are obtained as described in "Effective Brain Community Detection based on Constrained Autoregressive Model" A.Crimi et al. MICCAI 2016.
+*/
+
+
+//Setting the Graph windows in the webpage
+var w = 1600,
+    h = 1400
+
+var vis = d3.select("body").append("svg:svg")
+    .attr("width", w)
+    .attr("height", h);
+
+//Load the connections within the brain including the names
+d3.json("gd1_test.json", function(json) {
+
+graphRec=JSON.parse(JSON.stringify(json));  
+ 
+    //Initialize the force layout
+    var force = self.force = d3.layout.force()
+        .nodes(json.nodes)
+        .links(json.links)
+        .gravity(.05)
+        .distance(650)
+        .charge(-200)
+        .size([w, h])
+        .start();
+
+    var link = vis.selectAll("line.link")
+        .data(json.links)
+        .enter().append("svg:line")
+        .attr("class", "link")
+        .attr("x1", function(d) { return d.source.x; })
+        .attr("y1", function(d) { return d.source.y; })
+        .attr("x2", function(d) { return d.target.x; })
+        .attr("y2", function(d) { return d.target.y; });
+
+    //Add the behaviour drag'n' drop to the force layout
+    var node_drag = d3.behavior.drag()
+        .on("dragstart", dragstart)
+        .on("drag", dragmove)
+        .on("dragend", dragend);
+    function dragstart(d, i) {
+        force.stop() // stops the force auto positioning before you start dragging
+    }
+    function dragmove(d, i) {
+        d.px += d3.event.dx;
+        d.py += d3.event.dy;
+        d.x += d3.event.dx;
+        d.y += d3.event.dy; 
+        tick(); // this is the key to make it work together with updating both px,py,x,y on d !
+    }
+
+    function dragend(d, i) {
+        d.fixed = true; // of course set the node to fixed so the force doesn't include the node in its auto positioning stuff
+        tick();
+        force.resume();
+    }
+
+    //Initialize the graph nodes
+    var node = vis.selectAll("g.node")
+        .data(json.nodes)
+      .enter().append("svg:g")
+        .attr("class", "node")
+        .call(node_drag);
+
+    node.append("svg:image")
+        .attr("class", "circle")
+        .attr("xlink:href", "brain.ico")
+        .attr("x", "-8px")
+        .attr("y", "-8px")
+        .attr("width", "16px")
+        .attr("height", "16px");
+
+    node.append("svg:text")
+        .attr("class", "nodetext")
+        .attr("dx", 12)
+        .attr("dy", ".35em")
+        .text(function(d) { return d.name });
+
+    force.on("tick", tick);
+
+    function tick() {
+      link.attr("x1", function(d) { return d.source.x; })
+          .attr("y1", function(d) { return d.source.y; })
+          .attr("x2", function(d) { return d.target.x; })
+          .attr("y2", function(d) { return d.target.y; });
+
+      node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+    };
+
+
+});
+
+ 
+
+//adjust threshold
+function threshold(thresh) {
+    json.links.splice(0, json.links.length);
+
+		for (var i = 0; i < graphRec.links.length; i++) {
+			if (graphRec.links[i].value > thresh) {graph.links.push(graphRec.links[i]);}
+		}
+    restart();
+}
+
+
+//Restart the visualisation after any node and link changes
+function restart() {	
+	link = link.data(json.links);
+	link.exit().remove();
+	link.enter().insert("line", ".node").attr("class", "link");
+	node = node.data(graph.nodes);
+	node.enter().insert("circle", ".cursor").attr("class", "node").attr("r", 5).call(force.drag);
+	force.start();
+}
+
+</script>
+ 
+</form>
+</center>
+</body>
+</html>
